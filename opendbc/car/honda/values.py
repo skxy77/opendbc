@@ -205,7 +205,7 @@ class CAR(Platforms):
       # TODO: Confirm 2024
       HondaCarDocs("Honda Civic Hatchback Hybrid 2025-26", "All"),
     ],
-    CarSpecs(mass=1450, wheelbase=2.7, steerRatio=15.38, centerToFrontRatio=0.4),
+    HONDA_CIVIC_BOSCH.specs,
     {Bus.pt: 'honda_bosch_radarless_generated'},
     flags=HondaFlags.BOSCH_RADARLESS
   )

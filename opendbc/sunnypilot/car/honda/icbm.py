@@ -34,8 +34,15 @@ class IntelligentCruiseButtonManagementInterface(IntelligentCruiseButtonManageme
     if self.ICBM.sendButton != SendButtonState.none:
       send_button = BUTTONS[self.ICBM.sendButton]
 
-      if (self.frame - self.last_button_frame) * DT_CTRL > 0.1:
+      # Send button press every frame (~10ms) to ensure Honda PCM registers it
+      # between real SCM_BUTTONS messages from the steering column.
+      # Hold for ~70ms (7 frames) then release for ~30ms (3 frames) to simulate
+      # a realistic button press/release cycle that the PCM accepts.
+      elapsed_frames = self.frame - self.last_button_frame
+      cycle_pos = elapsed_frames % 10  # 10-frame cycle: 7 on, 3 off
+      if cycle_pos < 7:
         can_sends.append(hondacan.spam_buttons_command(packer, CAN, send_button, self.CP.carFingerprint))
-        self.last_button_frame = self.frame
+      if cycle_pos == 9:
+        self.last_button_frame = self.frame + 1  # reset cycle
 
     return can_sends

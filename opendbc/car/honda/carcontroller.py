@@ -159,6 +159,13 @@ class CarController(CarControllerBase, MadsCarController, GasInterceptorCarContr
       if self.frame % 10 == 0:
         can_sends.append(make_tester_present_msg(0x18DAB0F1, 1, suppress_response=True))
 
+    # tester present + controlDTCSetting(OFF) - suppress CMBS/FCW DTCs on radarless
+    if self.CP.carFingerprint in HONDA_BOSCH_RADARLESS and self.CP.openpilotLongitudinalControl:
+      if self.frame % 10 == 0:
+        can_sends.append(make_tester_present_msg(0x18DAB0F1, self.CAN.pt, suppress_response=True))
+      if self.frame % 50 == 0:
+        can_sends.append(hondacan.create_control_dtc_setting_off(0x18DAB0F1, self.CAN.pt))
+
     # Send steering command.
     can_sends.append(hondacan.create_steering_control(self.packer, self.CAN, apply_torque, CC.latActive, self.tja_control))
 
@@ -240,8 +247,10 @@ class CarController(CarControllerBase, MadsCarController, GasInterceptorCarContr
 
       if self.CP.openpilotLongitudinalControl:
         # TODO: combining with create_acc_hud block above will change message order and will need replay logs regenerated
-        if self.CP.carFingerprint in (HONDA_BOSCH - HONDA_BOSCH_RADARLESS):
+        if self.CP.carFingerprint in HONDA_BOSCH:
           can_sends.append(hondacan.create_radar_hud(self.packer, self.CAN.pt))
+        if self.CP.carFingerprint in HONDA_BOSCH_RADARLESS:
+          can_sends.append(hondacan.create_cruise_fault_status(self.packer, self.CAN.pt))
         if self.CP.carFingerprint == CAR.HONDA_CIVIC_BOSCH:
           can_sends.append(hondacan.create_legacy_brake_command(self.packer, self.CAN.pt))
         if self.CP.carFingerprint not in HONDA_BOSCH:

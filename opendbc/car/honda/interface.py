@@ -339,6 +339,11 @@ class CarInterface(CarInterfaceBase):
                                        uds.MESSAGE_TYPE.NORMAL_AND_NETWORK_MANAGEMENT])
       disable_ecu(can_recv, can_send, bus=CanBus(CP).pt, addr=0x18DAB0F1, com_cont_req=communication_control)
 
+    if CP.carFingerprint in HONDA_BOSCH_RADARLESS and CP.openpilotLongitudinalControl:
+      # Clear DTCs from camera ECU to suppress CMBS/FCW dashboard alerts
+      from opendbc.car.honda.clear_camera_dtc import clear_camera_dtc
+      clear_camera_dtc(can_recv, can_send, bus=CanBus(CP).pt, addr=0x18DAB0F1)
+
   @staticmethod
   def deinit(CP, can_recv, can_send):
     communication_control = bytes([uds.SERVICE_TYPE.COMMUNICATION_CONTROL, 0x80 | uds.CONTROL_TYPE.ENABLE_RX_ENABLE_TX,

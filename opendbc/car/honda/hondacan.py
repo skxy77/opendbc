@@ -1,4 +1,5 @@
 from opendbc.car import CanBusBase
+from opendbc.car.can_definitions import CanData
 from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.honda.values import (HondaFlags, HONDA_BOSCH, HONDA_BOSCH_ALT_RADAR, HONDA_BOSCH_RADARLESS,
                                       HONDA_BOSCH_CANFD, CarControllerParams)
@@ -219,6 +220,17 @@ def create_radar_hud(packer, bus):
   }
 
   return packer.make_can_msg('RADAR_HUD', bus, radar_hud_values)
+
+
+def create_cruise_fault_status(packer, bus):
+  return packer.make_can_msg('CRUISE_FAULT_STATUS', bus, {'CRUISE_FAULT': 0})
+
+
+def create_control_dtc_setting_off(addr, bus):
+  # UDS controlDTCSetting (0x85) sub-function OFF (0x02) - prevents camera from storing new DTCs
+  # Single-frame ISO-TP: length=2, service=0x85, sub=0x02
+  dat = b'\x02\x85\x02\x00\x00\x00\x00\x00'
+  return CanData(addr, dat, bus)
 
 
 def create_legacy_brake_command(packer, bus):

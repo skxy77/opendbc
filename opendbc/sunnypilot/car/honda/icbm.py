@@ -5,7 +5,7 @@ This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
 
-from opendbc.car import structs
+from opendbc.car import structs, DT_CTRL
 from opendbc.car.can_definitions import CanData
 from opendbc.car.honda import hondacan
 from opendbc.car.honda.values import CruiseButtons
@@ -34,9 +34,8 @@ class IntelligentCruiseButtonManagementInterface(IntelligentCruiseButtonManageme
     if self.ICBM.sendButton != SendButtonState.none:
       send_button = BUTTONS[self.ICBM.sendButton]
 
-      # Spam button press every frame (~10ms) to overwhelm the real steering column's
-      # zero-button messages that are forwarded to the camera bus. This matches the
-      # approach used for cancel/resume which reliably works on Honda radarless.
-      can_sends.append(hondacan.spam_buttons_command(packer, CAN, send_button, self.CP.carFingerprint))
+      if (self.frame - self.last_button_frame) * DT_CTRL > 0.1:
+        can_sends.append(hondacan.spam_buttons_command(packer, CAN, send_button, self.CP.carFingerprint))
+        self.last_button_frame = self.frame
 
     return can_sends

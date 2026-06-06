@@ -127,7 +127,13 @@ class CarState(CarStateBase, CarStateExt):
     ret.lowSpeedAlert = self.low_speed_alert
 
     if self.CP.carFingerprint in HONDA_BOSCH_RADARLESS:
-      ret.accFaulted = bool(cp.vl["CRUISE_FAULT_STATUS"]["CRUISE_FAULT"])
+      # On radarless Bosch with OP longitudinal, camera-side ACC fault bits can latch while we are
+      # intentionally blocking stock longitudinal control. Ignore the stock fault bit in this mode
+      # to avoid requiring a full car restart to re-engage.
+      if self.CP.openpilotLongitudinalControl:
+        ret.accFaulted = False
+      else:
+        ret.accFaulted = bool(cp.vl["CRUISE_FAULT_STATUS"]["CRUISE_FAULT"])
     else:
       if self.CP.openpilotLongitudinalControl:
         if (self.CP.carFingerprint == CAR.ACURA_MDX_4G) and (self.CP.flags & HondaFlags.BOSCH_ALT_BRAKE):

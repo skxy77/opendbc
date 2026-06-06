@@ -189,10 +189,11 @@ def create_lkas_hud(packer, bus, CP, hud_control, lat_active, steering_available
     lkas_hud_values['LANE_LINES'] = 3
     lkas_hud_values['DASHED_LANES'] = lat_active
 
-    # car likely needs to see LKAS_PROBLEM fall within a specific time frame, so forward from camera
-    # TODO: needed for Bosch CAN FD?
+    # When stock longitudinal is active, forward camera LKAS_PROBLEM to preserve stock behavior.
+    # With OP longitudinal on radarless Bosch, this bit can stay latched and cause repeated LKAS faults,
+    # so force clear while OP owns longitudinal/camera suppression.
     if CP.carFingerprint in HONDA_BOSCH_RADARLESS:
-      lkas_hud_values['LKAS_PROBLEM'] = lkas_hud['LKAS_PROBLEM']
+      lkas_hud_values['LKAS_PROBLEM'] = lkas_hud['LKAS_PROBLEM'] if not CP.openpilotLongitudinalControl else 0
 
   if not (CP.flags & HondaFlags.BOSCH_EXT_HUD):
     lkas_hud_values['RDM_OFF'] = 1

@@ -320,12 +320,16 @@ static bool honda_tx_hook(const CANPacket_t *msg) {
     }
   }
 
-  // Only tester present ("\x02\x3E\x80\x00\x00\x00\x00\x00") or controlDTCSetting OFF
-  // ("\x02\x85\x02\x00\x00\x00\x00\x00") allowed on diagnostics address
+  // Only tester present ("\x02\x3E\x80\x00\x00\x00\x00\x00"), controlDTCSetting OFF
+  // ("\x02\x85\x02\x00\x00\x00\x00\x00"), extended diagnostic session
+  // ("\x02\x10\x03\x00\x00\x00\x00\x00"), or clear all DTCs
+  // ("\x04\x14\xFF\xFF\xFF\x00\x00\x00") allowed on diagnostics address
   if (msg->addr == 0x18DAB0F1U) {
     bool is_tester_present = (GET_BYTES(msg, 0, 4) == 0x00803E02U) && (GET_BYTES(msg, 4, 4) == 0x0U);
     bool is_dtc_setting_off = (GET_BYTES(msg, 0, 4) == 0x00028502U) && (GET_BYTES(msg, 4, 4) == 0x0U);
-    if (!is_tester_present && !is_dtc_setting_off) {
+    bool is_extended_diag_session = (GET_BYTES(msg, 0, 4) == 0x00031002U) && (GET_BYTES(msg, 4, 4) == 0x0U);
+    bool is_clear_dtc_all = (GET_BYTES(msg, 0, 4) == 0xFFFF1404U) && (GET_BYTES(msg, 4, 4) == 0x0U);
+    if (!is_tester_present && !is_dtc_setting_off && !is_extended_diag_session && !is_clear_dtc_all) {
       tx = false;
     }
   }

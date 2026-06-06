@@ -189,11 +189,10 @@ def create_lkas_hud(packer, bus, CP, hud_control, lat_active, steering_available
     lkas_hud_values['LANE_LINES'] = 3
     lkas_hud_values['DASHED_LANES'] = lat_active
 
-    # car likely needs to see LKAS_PROBLEM fall within a specific time frame, so forward from camera
-    # TODO: needed for Bosch CAN FD?
+    # When stock longitudinal is active, forward camera LKAS_PROBLEM to preserve stock behavior.
+    # With OP longitudinal on radarless Bosch, this bit can stay latched and cause repeated LKAS faults,
+    # so force clear while OP owns longitudinal/camera suppression.
     if CP.carFingerprint in HONDA_BOSCH_RADARLESS:
-      # When openpilot longitudinal control is active, force LKAS_PROBLEM=0
-      # to suppress camera HUD warnings while OP asserts control of longitudinal.
       lkas_hud_values['LKAS_PROBLEM'] = lkas_hud['LKAS_PROBLEM'] if not CP.openpilotLongitudinalControl else 0
 
   if not (CP.flags & HondaFlags.BOSCH_EXT_HUD):
@@ -226,6 +225,20 @@ def create_radar_hud(packer, bus):
 
 def create_cruise_fault_status(packer, bus):
   return packer.make_can_msg('CRUISE_FAULT_STATUS', bus, {'CRUISE_FAULT': 0})
+
+
+def create_extended_diag_session(addr, bus):
+  # UDS diagnosticSessionControl (0x10) sub-function extendedDiagnosticSession (0x03)
+  # Single-frame ISO-TP: length=2, service=0x10, sub=0x03
+  dat = b'\x02\x10\x03\x00\x00\x00\x00\x00'
+  return CanData(addr, dat, bus)
+
+
+def create_clear_dtc_all(addr, bus):
+  # UDS clearDiagnosticInformation (0x14), groupOfDTC=0xFFFFFF (all DTCs)
+  # Single-frame ISO-TP: length=4, service=0x14, payload=0xFF 0xFF 0xFF
+  dat = b'\x04\x14\xFF\xFF\xFF\x00\x00\x00'
+  return CanData(addr, dat, bus)
 
 
 def create_control_dtc_setting_off(addr, bus):

@@ -161,10 +161,23 @@ class CarController(CarControllerBase, MadsCarController, GasInterceptorCarContr
 
     # tester present + controlDTCSetting(OFF) - suppress CMBS/FCW DTCs on radarless
     if self.CP.carFingerprint in HONDA_BOSCH_RADARLESS and self.CP.openpilotLongitudinalControl:
+      diag_addrs = (0x18DAB0F1, 0x18DAB5F1)
       if self.frame % 10 == 0:
-        can_sends.append(make_tester_present_msg(0x18DAB0F1, self.CAN.pt, suppress_response=True))
+        for addr in diag_addrs:
+          can_sends.append(make_tester_present_msg(addr, self.CAN.pt, suppress_response=True))
       if self.frame % 50 == 0:
-        can_sends.append(hondacan.create_control_dtc_setting_off(0x18DAB0F1, self.CAN.pt))
+        for addr in diag_addrs:
+          can_sends.append(hondacan.create_control_dtc_setting_off(addr, self.CAN.pt))
+      # Some camera ECUs keep fault bits latched; periodically refresh session and clear all DTCs.
+      if self.frame % 200 == 0:
+        for addr in diag_addrs:
+          can_sends.append(hondacan.create_extended_diag_session(addr, self.CAN.pt))
+      if self.frame % 200 == 5:
+        for addr in diag_addrs:
+          can_sends.append(hondacan.create_clear_dtc_all(addr, self.CAN.pt))
+      if self.frame % 200 == 10:
+        for addr in diag_addrs:
+          can_sends.append(hondacan.create_control_dtc_setting_off(addr, self.CAN.pt))
 
     # Send steering command.
     can_sends.append(hondacan.create_steering_control(self.packer, self.CAN, apply_torque, CC.latActive, self.tja_control))
@@ -235,7 +248,9 @@ class CarController(CarControllerBase, MadsCarController, GasInterceptorCarContr
           can_sends.extend(GasInterceptorCarController.update(self, CC, CS, gas, brake, wind_brake, self.packer, self.frame))
 
     # Send dashboard UI commands.
-    if self.frame % 10 == 0:
+    # Radarless Bosch can keep camera fault bits latched; refresh these messages faster when OP long is active.
+    ui_step = 2 if (self.CP.carFingerprint in HONDA_BOSCH_RADARLESS and self.CP.openpilotLongitudinalControl) else 10
+    if self.frame % ui_step == 0:
       if self.CP.openpilotLongitudinalControl:
         # On Nidec, this also controls longitudinal positive acceleration
         can_sends.append(hondacan.create_acc_hud(self.packer, self.CAN.pt, self.CP, CC.enabled, pcm_speed, pcm_accel,
@@ -250,7 +265,8 @@ class CarController(CarControllerBase, MadsCarController, GasInterceptorCarContr
         if self.CP.carFingerprint in HONDA_BOSCH:
           can_sends.append(hondacan.create_radar_hud(self.packer, self.CAN.pt))
         if self.CP.carFingerprint in HONDA_BOSCH_RADARLESS:
-          can_sends.append(hondacan.create_cruise_fault_status(self.packer, self.CAN.pt))
+          # send cruise fault status to the camera bus so camera-side fault bits are cleared
+          can_sends.append(hondacan.create_cruise_fault_status(self.packer, self.CAN.camera))
         if self.CP.carFingerprint == CAR.HONDA_CIVIC_BOSCH:
           can_sends.append(hondacan.create_legacy_brake_command(self.packer, self.CAN.pt))
         if self.CP.carFingerprint not in HONDA_BOSCH:

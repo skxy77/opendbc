@@ -55,7 +55,7 @@ class CarState(CarStateBase, CarStateExt):
     self.is_metric = False
     self.v_cruise_factor = 1.
 
-    # Temporary Honda fault tracing for field debugging.
+    # Temporary Honda fault tracing for field debugging..
     self._fault_trace_counter = 0
     self._prev_fault_trace = None
 

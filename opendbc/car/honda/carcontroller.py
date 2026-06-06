@@ -265,7 +265,8 @@ class CarController(CarControllerBase, MadsCarController, GasInterceptorCarContr
         if self.CP.carFingerprint in HONDA_BOSCH:
           can_sends.append(hondacan.create_radar_hud(self.packer, self.CAN.pt))
         if self.CP.carFingerprint in HONDA_BOSCH_RADARLESS:
-          can_sends.append(hondacan.create_cruise_fault_status(self.packer, self.CAN.pt))
+          # send cruise fault status to the camera bus so camera-side fault bits are cleared
+          can_sends.append(hondacan.create_cruise_fault_status(self.packer, self.CAN.camera))
         if self.CP.carFingerprint == CAR.HONDA_CIVIC_BOSCH:
           can_sends.append(hondacan.create_legacy_brake_command(self.packer, self.CAN.pt))
         if self.CP.carFingerprint not in HONDA_BOSCH:

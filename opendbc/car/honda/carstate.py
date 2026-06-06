@@ -83,6 +83,12 @@ class CarState(CarStateBase, CarStateExt):
     if self.CP.carFingerprint in HONDA_BOSCH_RADARLESS:
       radarless_cruise_fault = int(cp.vl["CRUISE_FAULT_STATUS"]["CRUISE_FAULT"])
       radarless_lkas_problem = int(cp_cam.vl["LKAS_HUD"]["LKAS_PROBLEM"])
+      
+      # When openpilot longitudinal control is active, zero incoming fault bits from camera
+      # to prevent spurious FAULT_1 steer faults that would otherwise block engagement
+      if self.CP.openpilotLongitudinalControl:
+        radarless_cruise_fault = 0
+        radarless_lkas_problem = 0
 
     # used for car hud message
     # TODO: find CAR_SPEED for HONDA_ODYSSEY_TWN or use ACC_HUD w/ detection

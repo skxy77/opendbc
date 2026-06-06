@@ -46,6 +46,10 @@ static bool honda_nidec_hybrid = false;
 typedef enum {HONDA_NIDEC, HONDA_BOSCH} HondaHw;
 static HondaHw honda_hw = HONDA_NIDEC;
 
+// When true, bypass all TX filtering in `honda_tx_hook` (use with caution).
+// Controlled via the `param` bit HONDA_PARAM_FORCE_BYPASS in the safety init.
+static bool honda_force_bypass_tx_filter = false;
+
 
 static unsigned int honda_get_pt_bus(void) {
   return ((honda_hw == HONDA_BOSCH) && !honda_bosch_radarless && !honda_bosch_canfd) ? 1U : 0U;
@@ -234,6 +238,11 @@ static bool honda_tx_hook(const CANPacket_t *msg) {
 
   bool tx = true;
 
+  // If enabled, bypass all TX filtering and allow transmissions unconditionally.
+  if (honda_force_bypass_tx_filter) {
+    return true;
+  }
+
   unsigned int bus_pt = honda_get_pt_bus();
   unsigned int bus_buttons = (honda_bosch_radarless) ? 2U : bus_pt;  // the camera controls ACC on radarless Bosch cars
 
@@ -359,6 +368,7 @@ static safety_config honda_nidec_init(uint16_t param) {
 
   const uint16_t HONDA_PARAM_SP_NIDEC_HYBRID = 1;
   const uint16_t HONDA_PARAM_GAS_INTERCEPTOR = 2;
+  const uint16_t HONDA_PARAM_FORCE_BYPASS = 32;
 
   honda_hw = HONDA_NIDEC;
   honda_brake = 0;
@@ -375,6 +385,9 @@ static safety_config honda_nidec_init(uint16_t param) {
 
   honda_nidec_hybrid = GET_FLAG(current_safety_param_sp, HONDA_PARAM_SP_NIDEC_HYBRID);
   enable_gas_interceptor = GET_FLAG(current_safety_param_sp, HONDA_PARAM_GAS_INTERCEPTOR);
+
+  // Allow runtime enabling of full TX bypass (for specific vehicles/testing).
+  honda_force_bypass_tx_filter = GET_FLAG(param, HONDA_PARAM_FORCE_BYPASS);
 
   if (enable_nidec_alt) {
     // For Nidecs with main on signal on an alternate msg (missing 0x326)
@@ -443,6 +456,7 @@ static safety_config honda_bosch_init(uint16_t param) {
   const uint16_t HONDA_PARAM_ALT_BRAKE = 1;
   const uint16_t HONDA_PARAM_RADARLESS = 8;
   const uint16_t HONDA_PARAM_BOSCH_CANFD = 16;
+  const uint16_t HONDA_PARAM_FORCE_BYPASS = 32;
 
   // Bosch radarless has the powertrain bus on bus 0
   static RxCheck honda_bosch_pt0_rx_checks[] = {
@@ -470,6 +484,9 @@ static safety_config honda_bosch_init(uint16_t param) {
   honda_bosch_canfd = GET_FLAG(param, HONDA_PARAM_BOSCH_CANFD);
   // Checking for alternate brake override from safety parameter
   honda_alt_brake_msg = GET_FLAG(param, HONDA_PARAM_ALT_BRAKE);
+
+  // Allow runtime enabling of full TX bypass (for specific vehicles/testing).
+  honda_force_bypass_tx_filter = GET_FLAG(param, HONDA_PARAM_FORCE_BYPASS);
 
   // radar disabled so allow gas/brakes
 #ifdef ALLOW_DEBUG

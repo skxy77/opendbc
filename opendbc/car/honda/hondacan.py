@@ -227,6 +227,20 @@ def create_cruise_fault_status(packer, bus):
   return packer.make_can_msg('CRUISE_FAULT_STATUS', bus, {'CRUISE_FAULT': 0})
 
 
+def create_extended_diag_session(addr, bus):
+  # UDS diagnosticSessionControl (0x10) sub-function extendedDiagnosticSession (0x03)
+  # Single-frame ISO-TP: length=2, service=0x10, sub=0x03
+  dat = b'\x02\x10\x03\x00\x00\x00\x00\x00'
+  return CanData(addr, dat, bus)
+
+
+def create_clear_dtc_all(addr, bus):
+  # UDS clearDiagnosticInformation (0x14), groupOfDTC=0xFFFFFF (all DTCs)
+  # Single-frame ISO-TP: length=4, service=0x14, payload=0xFF 0xFF 0xFF
+  dat = b'\x04\x14\xFF\xFF\xFF\x00\x00\x00'
+  return CanData(addr, dat, bus)
+
+
 def create_control_dtc_setting_off(addr, bus):
   # UDS controlDTCSetting (0x85) sub-function OFF (0x02) - prevents camera from storing new DTCs
   # Single-frame ISO-TP: length=2, service=0x85, sub=0x02

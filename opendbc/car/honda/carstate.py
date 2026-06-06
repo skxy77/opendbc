@@ -9,6 +9,7 @@ from opendbc.car.honda.values import CAR, DBC, STEER_THRESHOLD, HONDA_BOSCH, HON
                                                  HONDA_NIDEC_ALT_SCM_MESSAGES, HONDA_BOSCH_RADARLESS, \
                                                  HondaFlags, CruiseButtons, CruiseSettings, GearShifter, CarControllerParams
 from opendbc.car.interfaces import CarStateBase
+from opendbc.car.carlog import carlog
 
 from opendbc.sunnypilot.car.honda.carstate_ext import CarStateExt
 
@@ -53,6 +54,10 @@ class CarState(CarStateBase, CarStateExt):
     self.dash_speed_seen = False
     self.is_metric = False
     self.v_cruise_factor = 1.
+
+    # Temporary Honda fault tracing for field debugging.
+    self._fault_trace_counter = 0
+    self._prev_fault_trace = None
 
   def update(self, can_parsers) -> tuple[structs.CarState, structs.CarStateSP]:
     cp = can_parsers[Bus.pt]
@@ -100,7 +105,8 @@ class CarState(CarStateBase, CarStateExt):
 
     ret.seatbeltUnlatched = bool(cp.vl["SEATBELT_STATUS"]["SEATBELT_DRIVER_LAMP"] or not cp.vl["SEATBELT_STATUS"]["SEATBELT_DRIVER_LATCHED"])
 
-    steer_status = self.steer_status_values[cp.vl["STEER_STATUS"]["STEER_STATUS"]]
+    steer_status_raw = int(cp.vl["STEER_STATUS"]["STEER_STATUS"])
+    steer_status = self.steer_status_values[steer_status_raw]
     ret.steerFaultPermanent = steer_status not in ("NORMAL", "NO_TORQUE_ALERT_1", "NO_TORQUE_ALERT_2", "LOW_SPEED_LOCKOUT", "TMP_FAULT")
     if self.CP.carFingerprint in HONDA_BOSCH_ALT_RADAR:
       # TODO: See if this logic works for all other Honda
@@ -228,6 +234,30 @@ class CarState(CarStateBase, CarStateExt):
       self.stock_brake = cp_cam.vl["BRAKE_COMMAND"]
     if self.CP.carFingerprint in HONDA_BOSCH_RADARLESS:
       self.lkas_hud = cp_cam.vl["LKAS_HUD"]
+
+    # Temporary fault trace logs to capture radarless Civic restart-required behavior.
+    cruise_fault_status = None
+    lkas_problem = None
+    if self.CP.carFingerprint in HONDA_BOSCH_RADARLESS:
+      cruise_fault_status = int(cp.vl["CRUISE_FAULT_STATUS"]["CRUISE_FAULT"])
+      lkas_problem = int(cp_cam.vl["LKAS_HUD"]["LKAS_PROBLEM"])
+
+    trace_state = (cruise_fault_status, lkas_problem, steer_status_raw)
+    trace_changed = trace_state != self._prev_fault_trace
+    trace_fault_active = (cruise_fault_status not in (None, 0)) or \
+                         (lkas_problem not in (None, 0)) or \
+                         (steer_status not in ("NORMAL", "LOW_SPEED_LOCKOUT", "NO_TORQUE_ALERT_2"))
+
+    if trace_changed or (trace_fault_active and (self._fault_trace_counter % 100 == 0)):
+      carlog.warning(
+        f"honda_fault_trace: fp={self.CP.carFingerprint} op_long={int(self.CP.openpilotLongitudinalControl)} "
+        f"cruise_fault={cruise_fault_status} lkas_problem={lkas_problem} "
+        f"steer_status_raw={steer_status_raw} steer_status={steer_status} "
+        f"accFaulted={int(ret.accFaulted)} steerFaultTemp={int(ret.steerFaultTemporary)} steerFaultPerm={int(ret.steerFaultPermanent)}"
+      )
+
+    self._prev_fault_trace = trace_state
+    self._fault_trace_counter += 1
 
     if self.CP.enableBsm:
       # BSM messages are on B-CAN, requires a panda forwarding B-CAN messages to CAN 0

@@ -235,7 +235,9 @@ class CarController(CarControllerBase, MadsCarController, GasInterceptorCarContr
           can_sends.extend(GasInterceptorCarController.update(self, CC, CS, gas, brake, wind_brake, self.packer, self.frame))
 
     # Send dashboard UI commands.
-    if self.frame % 10 == 0:
+    # Radarless Bosch can keep camera fault bits latched; refresh these messages faster when OP long is active.
+    ui_step = 2 if (self.CP.carFingerprint in HONDA_BOSCH_RADARLESS and self.CP.openpilotLongitudinalControl) else 10
+    if self.frame % ui_step == 0:
       if self.CP.openpilotLongitudinalControl:
         # On Nidec, this also controls longitudinal positive acceleration
         can_sends.append(hondacan.create_acc_hud(self.packer, self.CAN.pt, self.CP, CC.enabled, pcm_speed, pcm_accel,

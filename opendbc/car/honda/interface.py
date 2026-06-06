@@ -342,7 +342,8 @@ class CarInterface(CarInterfaceBase):
     if CP.carFingerprint in HONDA_BOSCH_RADARLESS and CP.openpilotLongitudinalControl:
       # Clear DTCs from camera ECU to suppress CMBS/FCW dashboard alerts
       from opendbc.car.honda.clear_camera_dtc import clear_camera_dtc
-      clear_camera_dtc(can_recv, can_send, bus=CanBus(CP).pt, addr=0x18DAB0F1)
+      for addr in (0x18DAB0F1, 0x18DAB5F1):
+        clear_camera_dtc(can_recv, can_send, bus=CanBus(CP).pt, addr=addr)
 
   @staticmethod
   def deinit(CP, can_recv, can_send):

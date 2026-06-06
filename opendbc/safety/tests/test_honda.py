@@ -564,17 +564,18 @@ class TestHondaBoschLongSafety(HondaButtonEnableBase, TestHondaBoschSafetyBase):
     pass
 
   def test_diagnostics(self):
-    tester_present = libsafety_py.make_CANPacket(0x18DAB0F1, self.PT_BUS, b"\x02\x3E\x80\x00\x00\x00\x00\x00")
-    self.assertTrue(self._tx(tester_present))
+    for addr in (0x18DAB0F1, 0x18DAB5F1):
+      tester_present = libsafety_py.make_CANPacket(addr, self.PT_BUS, b"\x02\x3E\x80\x00\x00\x00\x00\x00")
+      self.assertTrue(self._tx(tester_present))
 
-    dtc_setting_off = libsafety_py.make_CANPacket(0x18DAB0F1, self.PT_BUS, b"\x02\x85\x02\x00\x00\x00\x00\x00")
-    self.assertTrue(self._tx(dtc_setting_off))
+      dtc_setting_off = libsafety_py.make_CANPacket(addr, self.PT_BUS, b"\x02\x85\x02\x00\x00\x00\x00\x00")
+      self.assertTrue(self._tx(dtc_setting_off))
 
-    extended_diag_session = libsafety_py.make_CANPacket(0x18DAB0F1, self.PT_BUS, b"\x02\x10\x03\x00\x00\x00\x00\x00")
-    self.assertTrue(self._tx(extended_diag_session))
+      extended_diag_session = libsafety_py.make_CANPacket(addr, self.PT_BUS, b"\x02\x10\x03\x00\x00\x00\x00\x00")
+      self.assertTrue(self._tx(extended_diag_session))
 
-    clear_dtc_all = libsafety_py.make_CANPacket(0x18DAB0F1, self.PT_BUS, b"\x04\x14\xFF\xFF\xFF\x00\x00\x00")
-    self.assertTrue(self._tx(clear_dtc_all))
+      clear_dtc_all = libsafety_py.make_CANPacket(addr, self.PT_BUS, b"\x04\x14\xFF\xFF\xFF\x00\x00\x00")
+      self.assertTrue(self._tx(clear_dtc_all))
 
     not_allowed = libsafety_py.make_CANPacket(0x18DAB0F1, self.PT_BUS, b"\x03\xAA\xAA\x00\x00\x00\x00\x00")
     self.assertFalse(self._tx(not_allowed))

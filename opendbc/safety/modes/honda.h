@@ -323,8 +323,8 @@ static bool honda_tx_hook(const CANPacket_t *msg) {
   // Only tester present ("\x02\x3E\x80\x00\x00\x00\x00\x00"), controlDTCSetting OFF
   // ("\x02\x85\x02\x00\x00\x00\x00\x00"), extended diagnostic session
   // ("\x02\x10\x03\x00\x00\x00\x00\x00"), or clear all DTCs
-  // ("\x04\x14\xFF\xFF\xFF\x00\x00\x00") allowed on diagnostics address
-  if (msg->addr == 0x18DAB0F1U) {
+  // ("\x04\x14\xFF\xFF\xFF\x00\x00\x00") allowed on diagnostics addresses
+  if ((msg->addr == 0x18DAB0F1U) || (msg->addr == 0x18DAB5F1U)) {
     bool is_tester_present = (GET_BYTES(msg, 0, 4) == 0x00803E02U) && (GET_BYTES(msg, 4, 4) == 0x0U);
     bool is_dtc_setting_off = (GET_BYTES(msg, 0, 4) == 0x00028502U) && (GET_BYTES(msg, 4, 4) == 0x0U);
     bool is_extended_diag_session = (GET_BYTES(msg, 0, 4) == 0x00031002U) && (GET_BYTES(msg, 4, 4) == 0x0U);
@@ -434,7 +434,8 @@ static safety_config honda_bosch_init(uint16_t param) {
 
   static CanMsg HONDA_RADARLESS_LONG_TX_MSGS[] = {{0xE4, 0, 5, .check_relay = true}, {0x33D, 0, 8, .check_relay = true}, {0x1C8, 0, 8, .check_relay = true},
                                                   {0x30C, 0, 8, .check_relay = true}, {0x39F, 0, 8, .check_relay = true},
-                                                  {0x1D3, 0, 8, .check_relay = true}, {0x18DAB0F1, 0, 8, .check_relay = false}};  // Bosch radarless w/ gas and brakes
+                                                  {0x1D3, 0, 8, .check_relay = true}, {0x18DAB0F1, 0, 8, .check_relay = false},
+                                                  {0x18DAB5F1, 0, 8, .check_relay = false}};  // Bosch radarless w/ gas and brakes
 
   static CanMsg HONDA_CANFD_TX_MSGS[] = {{0xE4, 0, 5, .check_relay = true}, {0x296, 0, 4, .check_relay = false}, {0x33D, 0, 8, .check_relay = true}};
 

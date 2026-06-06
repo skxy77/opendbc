@@ -161,17 +161,23 @@ class CarController(CarControllerBase, MadsCarController, GasInterceptorCarContr
 
     # tester present + controlDTCSetting(OFF) - suppress CMBS/FCW DTCs on radarless
     if self.CP.carFingerprint in HONDA_BOSCH_RADARLESS and self.CP.openpilotLongitudinalControl:
+      diag_addrs = (0x18DAB0F1, 0x18DAB5F1)
       if self.frame % 10 == 0:
-        can_sends.append(make_tester_present_msg(0x18DAB0F1, self.CAN.pt, suppress_response=True))
+        for addr in diag_addrs:
+          can_sends.append(make_tester_present_msg(addr, self.CAN.pt, suppress_response=True))
       if self.frame % 50 == 0:
-        can_sends.append(hondacan.create_control_dtc_setting_off(0x18DAB0F1, self.CAN.pt))
+        for addr in diag_addrs:
+          can_sends.append(hondacan.create_control_dtc_setting_off(addr, self.CAN.pt))
       # Some camera ECUs keep fault bits latched; periodically refresh session and clear all DTCs.
       if self.frame % 200 == 0:
-        can_sends.append(hondacan.create_extended_diag_session(0x18DAB0F1, self.CAN.pt))
+        for addr in diag_addrs:
+          can_sends.append(hondacan.create_extended_diag_session(addr, self.CAN.pt))
       if self.frame % 200 == 5:
-        can_sends.append(hondacan.create_clear_dtc_all(0x18DAB0F1, self.CAN.pt))
+        for addr in diag_addrs:
+          can_sends.append(hondacan.create_clear_dtc_all(addr, self.CAN.pt))
       if self.frame % 200 == 10:
-        can_sends.append(hondacan.create_control_dtc_setting_off(0x18DAB0F1, self.CAN.pt))
+        for addr in diag_addrs:
+          can_sends.append(hondacan.create_control_dtc_setting_off(addr, self.CAN.pt))
 
     # Send steering command.
     can_sends.append(hondacan.create_steering_control(self.packer, self.CAN, apply_torque, CC.latActive, self.tja_control))

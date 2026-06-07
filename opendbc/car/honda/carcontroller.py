@@ -115,6 +115,10 @@ class CarController(CarControllerBase, MadsCarController, GasInterceptorCarContr
     self.gas = 0.0
     self.brake = 0.0
     self.last_torque = 0.0
+    
+    # Counter tracking for radarless Bosch (0-3 rolling counter)
+    self.acc_control_counter = 0
+    self.cruise_fault_status_counter = 0
 
   def update(self, CC, CC_SP, CS, now_nanos):
     MadsCarController.update(self, self.CP, CC, CC_SP)
@@ -233,8 +237,11 @@ class CarController(CarControllerBase, MadsCarController, GasInterceptorCarContr
 
           stopping = actuators.longControlState == LongCtrlState.stopping
           self.stopping_counter = self.stopping_counter + 1 if stopping else 0
+          # Increment counter for radarless Bosch (0-3 rolling counter)
+          if self.CP.carFingerprint in HONDA_BOSCH_RADARLESS:
+            self.acc_control_counter = (self.acc_control_counter + 1) % 4
           can_sends.extend(hondacan.create_acc_commands(self.packer, self.CAN, CC.enabled, CC.longActive, self.accel, self.gas,
-                                                        self.stopping_counter, self.CP.carFingerprint))
+                                                        self.stopping_counter, self.CP.carFingerprint, self.acc_control_counter))
         else:
           apply_brake = np.clip(self.brake_last - wind_brake, 0.0, 1.0)
           apply_brake = int(np.clip(apply_brake * self.params.NIDEC_BRAKE_MAX, 0, self.params.NIDEC_BRAKE_MAX - 1))
@@ -268,7 +275,9 @@ class CarController(CarControllerBase, MadsCarController, GasInterceptorCarContr
           can_sends.append(hondacan.create_radar_hud(self.packer, self.CAN.pt))
         if self.CP.carFingerprint in HONDA_BOSCH_RADARLESS:
           # send cruise fault status to the camera bus so camera-side fault bits are cleared
-          can_sends.append(hondacan.create_cruise_fault_status(self.packer, self.CAN.camera))
+          # Increment counter for radarless Bosch (0-3 rolling counter)
+          self.cruise_fault_status_counter = (self.cruise_fault_status_counter + 1) % 4
+          can_sends.append(hondacan.create_cruise_fault_status(self.packer, self.CAN.camera, self.cruise_fault_status_counter))
         if self.CP.carFingerprint == CAR.HONDA_CIVIC_BOSCH:
           can_sends.append(hondacan.create_legacy_brake_command(self.packer, self.CAN.pt))
         if self.CP.carFingerprint not in HONDA_BOSCH:

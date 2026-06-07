@@ -78,7 +78,7 @@ def create_brake_command(packer, CAN, apply_brake, pump_on, pcm_override, pcm_ca
   return packer.make_can_msg("BRAKE_COMMAND", CAN.pt, values)
 
 
-def create_acc_commands(packer, CAN, enabled, active, accel, gas, stopping_counter, car_fingerprint):
+def create_acc_commands(packer, CAN, enabled, active, accel, gas, stopping_counter, car_fingerprint, counter=0):
   commands = []
   min_gas_accel = CarControllerParams.BOSCH_GAS_LOOKUP_BP[0]
 
@@ -93,6 +93,7 @@ def create_acc_commands(packer, CAN, enabled, active, accel, gas, stopping_count
   acc_control_values = {
     'ACCEL_COMMAND': accel_command,
     'STANDSTILL': standstill,
+    'COUNTER': counter,  # Rolling counter for Bosch firmware validation
   }
 
   if car_fingerprint in HONDA_BOSCH_RADARLESS:
@@ -223,8 +224,8 @@ def create_radar_hud(packer, bus):
   return packer.make_can_msg('RADAR_HUD', bus, radar_hud_values)
 
 
-def create_cruise_fault_status(packer, bus):
-  return packer.make_can_msg('CRUISE_FAULT_STATUS', bus, {'CRUISE_FAULT': 0})
+def create_cruise_fault_status(packer, bus, counter=0):
+  return packer.make_can_msg('CRUISE_FAULT_STATUS', bus, {'CRUISE_FAULT': 0, 'COUNTER': counter})
 
 
 def create_extended_diag_session(addr, bus):

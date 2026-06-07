@@ -165,17 +165,17 @@ class CarController(CarControllerBase, MadsCarController, GasInterceptorCarContr
       if self.frame % 10 == 0:
         for addr in diag_addrs:
           can_sends.append(make_tester_present_msg(addr, self.CAN.pt, suppress_response=True))
-      if self.frame % 50 == 0:
+      if self.frame % 20 == 0:  # More aggressive - every 20 frames instead of 50
         for addr in diag_addrs:
           can_sends.append(hondacan.create_control_dtc_setting_off(addr, self.CAN.pt))
       # Some camera ECUs keep fault bits latched; periodically refresh session and clear all DTCs.
-      if self.frame % 200 == 0:
+      if self.frame % 100 == 0:  # More aggressive - every 100 frames instead of 200
         for addr in diag_addrs:
           can_sends.append(hondacan.create_extended_diag_session(addr, self.CAN.pt))
-      if self.frame % 200 == 5:
+      if self.frame % 100 == 5:
         for addr in diag_addrs:
           can_sends.append(hondacan.create_clear_dtc_all(addr, self.CAN.pt))
-      if self.frame % 200 == 10:
+      if self.frame % 100 == 10:  # More aggressive
         for addr in diag_addrs:
           can_sends.append(hondacan.create_control_dtc_setting_off(addr, self.CAN.pt))
 
@@ -251,27 +251,16 @@ class CarController(CarControllerBase, MadsCarController, GasInterceptorCarContr
 
     # Send dashboard UI commands.
     # Radarless Bosch can keep camera fault bits latched; refresh these messages faster when OP long is active.
-    # However, don't send full HUD control when parked to avoid false LKA/EAB warnings
     ui_step = 2 if (self.CP.carFingerprint in HONDA_BOSCH_RADARLESS and self.CP.openpilotLongitudinalControl) else 10
-    should_send_hud = self.frame % ui_step == 0
-    
-    if should_send_hud:
+    if self.frame % ui_step == 0:
       if self.CP.openpilotLongitudinalControl:
         # On Nidec, this also controls longitudinal positive acceleration
-        # For radarless Bosch when not engaged, suppress full HUD to avoid dashboard warnings
-        if self.CP.carFingerprint in HONDA_BOSCH_RADARLESS and not (CC.enabled or CC.longActive):
-          pass  # Skip ACC_HUD when parked to prevent warnings
-        else:
-          can_sends.append(hondacan.create_acc_hud(self.packer, self.CAN.pt, self.CP, CC.enabled, pcm_speed, pcm_accel,
-                                                   hud_control, hud_v_cruise, CS.is_metric, CS.acc_hud))
+        can_sends.append(hondacan.create_acc_hud(self.packer, self.CAN.pt, self.CP, CC.enabled, pcm_speed, pcm_accel,
+                                                 hud_control, hud_v_cruise, CS.is_metric, CS.acc_hud))
 
       steering_available = CS.out.cruiseState.available and CS.out.vEgo > max(self.params.STEER_GLOBAL_MIN_SPEED, self.CP.minSteerSpeed)
-      # For radarless Bosch when not engaged, skip LKAS_HUD to prevent false warnings
-      if self.CP.carFingerprint in HONDA_BOSCH_RADARLESS and not (CC.latActive or CC.longActive):
-        pass  # Skip LKAS_HUD when system not engaged
-      else:
-        can_sends.extend(hondacan.create_lkas_hud(self.packer, self.CAN.lkas, self.CP, hud_control, CC.latActive,
-                                                  steering_available, alert_steer_required, CS.lkas_hud, self.dashed_lanes))
+      can_sends.extend(hondacan.create_lkas_hud(self.packer, self.CAN.lkas, self.CP, hud_control, CC.latActive,
+                                                steering_available, alert_steer_required, CS.lkas_hud, self.dashed_lanes))
 
       if self.CP.openpilotLongitudinalControl:
         # TODO: combining with create_acc_hud block above will change message order and will need replay logs regenerated

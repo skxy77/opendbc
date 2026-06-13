@@ -163,7 +163,7 @@ class CarController(CarControllerBase, MadsCarController, GasInterceptorCarContr
       if self.frame % 10 == 0:
         can_sends.append(make_tester_present_msg(0x18DAB0F1, 1, suppress_response=True))
 
-    # tester present + controlDTCSetting(OFF) - suppress CMBS/FCW DTCs on radarless
+    # tester present + controlDTCSetting(OFF) - suppress CMBS/FCW DTCs on radarless (only for full oplong, not throttle-only)
     if self.CP.carFingerprint in HONDA_BOSCH_RADARLESS and self.CP.openpilotLongitudinalControl:
       diag_addrs = (0x18DAB0F1, 0x18DAB5F1)
       if self.frame % 10 == 0:
@@ -237,11 +237,14 @@ class CarController(CarControllerBase, MadsCarController, GasInterceptorCarContr
 
           stopping = actuators.longControlState == LongCtrlState.stopping
           self.stopping_counter = self.stopping_counter + 1 if stopping else 0
-          can_sends.extend(hondacan.create_acc_commands(self.packer, self.CAN, CC.enabled, CC.longActive, self.accel, self.gas,
-                                                        self.stopping_counter, self.CP.carFingerprint, self.acc_control_counter))
-          # Increment counter AFTER message sent for radarless Bosch (0-3 rolling counter)
-          if self.CP.carFingerprint in HONDA_BOSCH_RADARLESS:
-            self.acc_control_counter = (self.acc_control_counter + 1) % 4
+          
+          # Only send ACC_CONTROL when full openpilot longitudinal is enabled (not throttle-only)
+          if self.CP.openpilotLongitudinalControl:
+            can_sends.extend(hondacan.create_acc_commands(self.packer, self.CAN, CC.enabled, CC.longActive, self.accel, self.gas,
+                                                          self.stopping_counter, self.CP.carFingerprint, self.acc_control_counter))
+            # Increment counter AFTER message sent for radarless Bosch (0-3 rolling counter)
+            if self.CP.carFingerprint in HONDA_BOSCH_RADARLESS:
+              self.acc_control_counter = (self.acc_control_counter + 1) % 4
         else:
           apply_brake = np.clip(self.brake_last - wind_brake, 0.0, 1.0)
           apply_brake = int(np.clip(apply_brake * self.params.NIDEC_BRAKE_MAX, 0, self.params.NIDEC_BRAKE_MAX - 1))
@@ -264,6 +267,9 @@ class CarController(CarControllerBase, MadsCarController, GasInterceptorCarContr
         # On Nidec, this also controls longitudinal positive acceleration
         can_sends.append(hondacan.create_acc_hud(self.packer, self.CAN.pt, self.CP, CC.enabled, pcm_speed, pcm_accel,
                                                  hud_control, hud_v_cruise, CS.is_metric, CS.acc_hud))
+      elif getattr(self.CP_SP, 'throttleOnlyLongitudinalControl', False):
+        # THROTTLE-ONLY MODE: Send minimal throttle-only ACC_HUD instead of full takeover
+        can_sends.append(hondacan.create_throttle_only_acc_hud(self.packer, self.CAN.pt, pcm_accel, CS.is_metric))
 
       steering_available = CS.out.cruiseState.available and CS.out.vEgo > max(self.params.STEER_GLOBAL_MIN_SPEED, self.CP.minSteerSpeed)
       can_sends.extend(hondacan.create_lkas_hud(self.packer, self.CAN.lkas, self.CP, hud_control, CC.latActive,

@@ -228,6 +228,25 @@ def create_cruise_fault_status(packer, bus, counter=0):
   return packer.make_can_msg('CRUISE_FAULT_STATUS', bus, {'CRUISE_FAULT': 0, 'COUNTER': counter})
 
 
+def create_throttle_only_acc_hud(packer, bus, pcm_accel, is_metric):
+  """Send minimal ACC_HUD for throttle-only mode (no ACC takeover signals)"""
+  acc_hud_values = {
+    'CRUISE_SPEED': 0,
+    'ENABLE_MINI_CAR': 0,  # Don't show mini car
+    'HUD_DISTANCE': 0,
+    'IMPERIAL_UNIT': int(not is_metric),
+    'HUD_LEAD': 0,  # Don't show lead car
+    'SET_ME_X01_2': 1,
+    'ACC_ON': 0,  # Critical: Don't signal ACC takeover
+    'FCM_OFF': 1,
+    'FCM_OFF_2': 1,
+    'PCM_GAS': pcm_accel,  # Send throttle for driver reference
+    'SET_ME_X01': 1,
+  }
+  return packer.make_can_msg("ACC_HUD", bus, acc_hud_values)
+
+
+
 def create_extended_diag_session(addr, bus):
   # UDS diagnosticSessionControl (0x10) sub-function extendedDiagnosticSession (0x03)
   # Single-frame ISO-TP: length=2, service=0x10, sub=0x03

@@ -54,6 +54,8 @@ class CarInterface(CarInterfaceBase):
       # If Bosch radarless, this blocks ACC messages from the camera
       # TODO: get radar disable working on Bosch CANFD
       ret.alphaLongitudinalAvailable = candidate not in HONDA_BOSCH_CANFD
+      # For radarless, use throttle-only mode: don't send ACC_CONTROL_ON to avoid camera warnings
+      # Use openpilotLongitudinalControl=False with pcmCruiseSpeed=False (ICBM pattern) to activate PID without camera takeover
       ret.openpilotLongitudinalControl = alpha_long and (candidate not in HONDA_BOSCH_CANFD)
       ret.pcmCruise = not ret.openpilotLongitudinalControl
     else:
